@@ -41,6 +41,8 @@ jobs:
           TWILIO_CONTENT_SID:    ${{ secrets.TWILIO_CONTENT_SID }}
           TEAMS_WEBHOOK_URL:     ${{ secrets.TEAMS_WEBHOOK_URL }}
           NVD_API_KEY:           ${{ secrets.NVD_API_KEY }}
+          TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:      ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python alert_bot.py
 
       - name: Save state (so you never get the same alert twice)
