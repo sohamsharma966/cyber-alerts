@@ -264,7 +264,10 @@ def src_rss(cfg, vendors):
                 must = feed.get("keywords") or []
                 if must and not contains_any(text, must):
                     continue
-                if contains_any(title, ["resolved", "completed", "scheduled maintenance"]):
+                # Skip maintenance notices and finished incidents (status-page update prefixes)
+                if contains_any(title, ["resolved", "completed", "scheduled maintenance"]) or \
+                        re.search(r"\b(Resolved|Completed|Scheduled|In progress|Postmortem) -", summary[:150]) or \
+                        contains_any(text, ["scheduled maintenance"]):
                     continue
                 category = "OUTAGE"
                 urgent = feed.get("urgent", False)
