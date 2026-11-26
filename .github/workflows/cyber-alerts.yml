@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "*/5 * * * *"   # every 5 min (GitHub's minimum; runs can be delayed at busy times)
   workflow_dispatch:         # "Run workflow" button for manual tests
+    inputs:
+      preview:
+        description: "Preview: send sample alerts (one per type) to see the format"
+        type: boolean
+        default: false
 
 permissions:
   contents: write            # needed to save state/seen.json back to the repo
@@ -43,7 +48,7 @@ jobs:
           NVD_API_KEY:           ${{ secrets.NVD_API_KEY }}
           TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:      ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python alert_bot.py
+        run: python alert_bot.py ${{ inputs.preview && '--preview' || '' }}
 
       - name: Save state (so you never get the same alert twice)
         run: |
