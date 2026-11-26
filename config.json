@@ -1,28 +1,105 @@
 {
   "_help": "watch_vendors = products you use. Critical CVEs that mention them are sent instantly; others go to the digest. Leave the list empty to get every critical CVE (noisy).",
   "watch_vendors": [
-    "Microsoft", "Windows", "Exchange", "SharePoint", "Microsoft 365", "Office", "Outlook", "Teams",
-    "Azure", "Entra", "Defender", "Intune", "Sentinel", "Purview",
-    "Palo Alto", "PAN-OS", "GlobalProtect", "Prisma", "Strata", "Cortex",
-    "Fortinet", "FortiOS", "FortiGate", "Cisco", "SonicWall", "Ivanti", "Check Point",
-    "VMware", "vCenter", "ESXi", "Citrix", "NetScaler", "Linux",
-    "Oracle", "Oracle Cloud", "OCI", "OCVS", "JD Edwards", "JDE", "EnterpriseOne", "RFgen",
-    "SolarWinds", "Atlassian", "AWS", "Google Cloud", "Chrome", "Apple", "iOS", "macOS", "Android"
+    "Microsoft",
+    "Windows",
+    "Exchange",
+    "SharePoint",
+    "Microsoft 365",
+    "Office",
+    "Outlook",
+    "Teams",
+    "Azure",
+    "Entra",
+    "Defender",
+    "Intune",
+    "Sentinel",
+    "Purview",
+    "Palo Alto",
+    "PAN-OS",
+    "GlobalProtect",
+    "Prisma",
+    "Strata",
+    "Cortex",
+    "Fortinet",
+    "FortiOS",
+    "FortiGate",
+    "Cisco",
+    "SonicWall",
+    "Ivanti",
+    "Check Point",
+    "VMware",
+    "vCenter",
+    "ESXi",
+    "Citrix",
+    "NetScaler",
+    "Linux",
+    "Oracle",
+    "Oracle Cloud",
+    "OCI",
+    "OCVS",
+    "JD Edwards",
+    "JDE",
+    "EnterpriseOne",
+    "RFgen",
+    "SolarWinds",
+    "Atlassian",
+    "AWS",
+    "Google Cloud",
+    "Chrome",
+    "Apple",
+    "iOS",
+    "macOS",
+    "Android"
   ],
-
   "keywords": {
-    "zero_day": ["zero-day", "zero day", "0-day", "0day", "actively exploited",
-                 "exploited in the wild", "in-the-wild", "under active attack",
-                 "known exploited", "emergency patch", "out-of-band", "mass exploitation"],
-    "critical": ["critical vulnerability", "critical flaw", "remote code execution",
-                 "RCE", "CVSS 10", "CVSS 9", "authentication bypass", "ransomware",
-                 "outage", "data breach", "supply chain attack"]
+    "zero_day": [
+      "zero-day",
+      "zero day",
+      "0-day",
+      "0day",
+      "actively exploited",
+      "exploited in the wild",
+      "in-the-wild",
+      "under active attack",
+      "known exploited",
+      "emergency patch",
+      "out-of-band",
+      "mass exploitation"
+    ],
+    "critical": [
+      "critical vulnerability",
+      "critical flaw",
+      "remote code execution",
+      "RCE",
+      "CVSS 10",
+      "CVSS 9",
+      "authentication bypass",
+      "ransomware",
+      "outage",
+      "data breach",
+      "supply chain attack"
+    ],
+    "end_of_support": [
+      "retirement",
+      "retire",
+      "retired",
+      "retiring",
+      "end of support",
+      "end-of-support",
+      "end of life",
+      "end-of-life",
+      "EOL",
+      "deprecated",
+      "deprecation",
+      "discontinue",
+      "discontinued",
+      "sunset"
+    ]
   },
-
   "max_urgent_per_run": 8,
   "send_digest": true,
   "max_digest_items": 15,
-
   "sources": {
     "cisa_kev": {
       "enabled": true,
@@ -36,23 +113,164 @@
       "all_critical_urgent": false
     },
     "rss": [
-      {"name": "The Hacker News", "type": "news", "url": "https://feeds.feedburner.com/TheHackersNews"},
-      {"name": "BleepingComputer", "type": "news", "url": "https://www.bleepingcomputer.com/feed/"},
-      {"name": "SecurityWeek", "type": "news", "url": "https://www.securityweek.com/feed/"},
-
-      {"name": "CISA Advisories", "type": "patch", "url": "https://www.cisa.gov/cybersecurity-advisories/all.xml", "keywords": []},
-      {"name": "Microsoft MSRC", "type": "patch", "url": "https://api.msrc.microsoft.com/update-guide/rss", "keywords": ["Remote Code Execution", "Exploited", "Critical"], "max_items": 100},
-      {"name": "Cisco PSIRT", "type": "patch", "url": "https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml", "keywords": ["Critical", "Exploit"]},
-      {"name": "Fortinet PSIRT", "type": "patch", "url": "https://filestore.fortinet.com/fortiguard/rss/ir.xml", "keywords": []},
-      {"name": "Palo Alto Advisories", "type": "patch", "url": "https://security.paloaltonetworks.com/rss.xml", "keywords": [], "urgent": true},
-      {"name": "Oracle Security Alerts", "type": "patch", "url": "https://www.oracle.com/ocom/groups/public/@otn/documents/webcontent/rss-otn-sec.xml", "keywords": []},
-
-      {"name": "Cloudflare Status", "type": "outage", "url": "https://www.cloudflarestatus.com/history.rss", "urgent": true, "max_age_hours": 6},
-      {"name": "GitHub Status", "type": "outage", "url": "https://www.githubstatus.com/history.rss", "urgent": false, "max_age_hours": 6},
-      {"name": "Azure Status", "type": "outage", "url": "https://rssfeed.azure.status.microsoft/en-us/status/feed/", "urgent": true, "max_age_hours": 6},
-      {"name": "AWS Health", "type": "outage", "url": "https://status.aws.amazon.com/rss/all.rss", "urgent": true, "max_age_hours": 6},
-      {"name": "Google Cloud Status", "type": "outage", "url": "https://status.cloud.google.com/en/feed.atom", "urgent": false, "max_age_hours": 6},
-      {"name": "Palo Alto Status", "type": "outage", "url": "https://status.paloaltonetworks.com/history.rss", "urgent": true, "max_age_hours": 6}
-    ]
+      {
+        "name": "The Hacker News",
+        "type": "news",
+        "url": "https://feeds.feedburner.com/TheHackersNews"
+      },
+      {
+        "name": "BleepingComputer",
+        "type": "news",
+        "url": "https://www.bleepingcomputer.com/feed/"
+      },
+      {
+        "name": "SecurityWeek",
+        "type": "news",
+        "url": "https://www.securityweek.com/feed/"
+      },
+      {
+        "name": "CISA Advisories",
+        "type": "patch",
+        "url": "https://www.cisa.gov/cybersecurity-advisories/all.xml",
+        "keywords": []
+      },
+      {
+        "name": "Microsoft MSRC",
+        "type": "patch",
+        "url": "https://api.msrc.microsoft.com/update-guide/rss",
+        "keywords": [
+          "Remote Code Execution",
+          "Exploited",
+          "Critical"
+        ],
+        "max_items": 100
+      },
+      {
+        "name": "Cisco PSIRT",
+        "type": "patch",
+        "url": "https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml",
+        "keywords": [
+          "Critical",
+          "Exploit"
+        ]
+      },
+      {
+        "name": "Fortinet PSIRT",
+        "type": "patch",
+        "url": "https://filestore.fortinet.com/fortiguard/rss/ir.xml",
+        "keywords": []
+      },
+      {
+        "name": "Palo Alto Advisories",
+        "type": "patch",
+        "url": "https://security.paloaltonetworks.com/rss.xml",
+        "keywords": [],
+        "urgent": true
+      },
+      {
+        "name": "Oracle Security Alerts",
+        "type": "patch",
+        "url": "https://www.oracle.com/ocom/groups/public/@otn/documents/webcontent/rss-otn-sec.xml",
+        "keywords": []
+      },
+      {
+        "name": "Cloudflare Status",
+        "type": "outage",
+        "url": "https://www.cloudflarestatus.com/history.rss",
+        "urgent": true,
+        "max_age_hours": 6
+      },
+      {
+        "name": "GitHub Status",
+        "type": "outage",
+        "url": "https://www.githubstatus.com/history.rss",
+        "urgent": false,
+        "max_age_hours": 6
+      },
+      {
+        "name": "Azure Status",
+        "type": "outage",
+        "url": "https://rssfeed.azure.status.microsoft/en-us/status/feed/",
+        "urgent": true,
+        "max_age_hours": 6
+      },
+      {
+        "name": "AWS Health",
+        "type": "outage",
+        "url": "https://status.aws.amazon.com/rss/all.rss",
+        "urgent": true,
+        "max_age_hours": 6
+      },
+      {
+        "name": "Google Cloud Status",
+        "type": "outage",
+        "url": "https://status.cloud.google.com/en/feed.atom",
+        "urgent": false,
+        "max_age_hours": 6
+      },
+      {
+        "name": "Palo Alto Status",
+        "type": "outage",
+        "url": "https://status.paloaltonetworks.com/history.rss",
+        "urgent": true,
+        "max_age_hours": 6
+      },
+      {
+        "name": "OCI Status",
+        "type": "outage",
+        "url": "https://ocistatus.oraclecloud.com/api/v2/incident-summary.rss",
+        "urgent": true,
+        "max_age_hours": 6
+      },
+      {
+        "name": "Azure Retirements",
+        "type": "eol",
+        "url": "https://www.microsoft.com/releasecommunications/api/v2/azure/rss",
+        "keywords": [
+          "Retirement:",
+          "retire",
+          "retired",
+          "retiring",
+          "end of support",
+          "deprecated",
+          "deprecation"
+        ],
+        "max_items": 200,
+        "max_age_hours": 72
+      }
+    ],
+    "endoflife": {
+      "enabled": true,
+      "warn_days": [
+        180,
+        90,
+        30,
+        7
+      ],
+      "urgent_days": 7,
+      "products": [
+        "windows-server",
+        "windows",
+        "msexchange",
+        "sharepoint",
+        "mssqlserver",
+        "office",
+        "panos",
+        "fortios",
+        "cisco-ios-xe",
+        "esxi",
+        "vcenter",
+        "citrix-vad",
+        "oracle-database",
+        "oracle-linux",
+        "oracle-jdk",
+        "rhel",
+        "ubuntu"
+      ]
+    },
+    "m365": {
+      "enabled": true,
+      "retirements": true
+    }
   }
 }
