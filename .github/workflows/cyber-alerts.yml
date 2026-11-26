@@ -2,7 +2,7 @@ name: cyber-alerts
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # every 5 min (GitHub's minimum; runs can be delayed at busy times)
+    - cron: "3-58/5 * * * *"   # every 5 min, offset from :00 (GitHub delays top-of-hour runs)
   workflow_dispatch:         # "Run workflow" button for manual tests
     inputs:
       preview:
