@@ -71,11 +71,13 @@ def clean(text, limit=None):
     return text
 
 
-def contains_any(text, words):
-    """Whole-word, case-insensitive match (so 'RCE' doesn't match 'source')."""
+def contains_any(text, words, ignore_case=True):
+    """Whole-word match (so 'RCE' doesn't match 'source'). Vendor names use exact case
+    so 'iOS' doesn't match Cisco 'IOS XE'."""
     t = text or ""
+    flags = re.I if ignore_case else 0
     return [w for w in words
-            if re.search(r"(?<![A-Za-z0-9])" + re.escape(w) + r"(?![A-Za-z0-9])", t, re.I)]
+            if re.search(r"(?<![A-Za-z0-9])" + re.escape(w) + r"(?![A-Za-z0-9])", t, flags)]
 
 
 def http_get(url, **kw):
@@ -200,7 +202,7 @@ def src_nvd(cfg, vendors):
         patch_refs = [r["url"] for r in refs
                       if set(r.get("tags", [])) & {"Patch", "Vendor Advisory", "Mitigation"}]
         haystack = desc + " " + " ".join(r.get("url", "") for r in refs)
-        matched = contains_any(haystack, vendors)
+        matched = contains_any(haystack, vendors, ignore_case=False)
         exploited = bool(cve.get("cisaExploitAdd"))
         if c.get("require_vendor_match", True) and vendors and not matched and not exploited:
             continue
@@ -244,7 +246,7 @@ def src_rss(cfg, vendors):
             text = f"{title} {summary}"
             kind = feed["type"]
             exploited_hits = contains_any(text, kw["zero_day"])
-            vendor_hits = contains_any(text, vendors)
+            vendor_hits = contains_any(text, vendors, ignore_case=False)
 
             if kind == "news":
                 # Only alert on news about zero-days / active exploitation / emergency patches
@@ -410,6 +412,7 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--seed", action="store_true")
     ap.add_argument("--test-message", action="store_true")
+    ap.add_argument("--preview", action="store_true")
     args = ap.parse_args()
 
     load_dotenv()
@@ -419,6 +422,25 @@ def main():
     if args.test_message:
         ok = deliver("✅ Cyber Alert Bot test message – delivery works.", args.dry_run)
         sys.exit(0 if ok else 1)
+
+    if args.preview:
+        # Send one real recent item per category so you can see the format.
+        # Does not touch state, so normal alerting is unaffected.
+        alerts = collect(cfg)
+        picked, cats = [], set()
+        for a in alerts:
+            if a.category not in cats:
+                cats.add(a.category)
+                picked.append(a)
+        deliver(f"👀 PREVIEW – {len(picked)} sample alert(s) built from real recent items "
+                f"(one per type), plus a sample digest. Real alerts don't have this header.",
+                args.dry_run)
+        for a in picked:
+            deliver(a.full_text(), args.dry_run)
+        if alerts:
+            deliver("📋 *Security update – sample digest*\n"
+                    + "\n".join(a.short_line() for a in alerts[:6]), args.dry_run)
+        return
 
     state = load_state()
     first_run = state is None
