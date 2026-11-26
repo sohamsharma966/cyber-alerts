@@ -3,7 +3,7 @@
 Cyber Alert Bot
 ---------------
 Watches zero-day / critical vulnerability / patch / outage sources and pushes
-alerts to WhatsApp (Meta Cloud API or Twilio) and optionally Microsoft Teams.
+alerts to Telegram, WhatsApp (Meta Cloud API or Twilio) and/or Microsoft Teams.
 
 Sources:
   * CISA KEV (actively exploited vulnerabilities = zero-days in the wild)
@@ -20,6 +20,7 @@ import argparse
 import calendar
 import datetime as dt
 import hashlib
+import html
 import json
 import os
 import re
@@ -331,6 +332,22 @@ def send_twilio(text):
     return ok
 
 
+def send_telegram(text):
+    """Telegram bot message (free). *bold* markers become HTML bold."""
+    token, chat_ids = env("TELEGRAM_BOT_TOKEN"), env("TELEGRAM_CHAT_ID")
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    body = re.sub(r"\*(.+?)\*", r"<b>\1</b>", html.escape(text[:3900], quote=False))
+    ok = True
+    for chat_id in [c.strip() for c in chat_ids.split(",") if c.strip()]:
+        r = requests.post(url, timeout=HTTP_TIMEOUT, json={
+            "chat_id": chat_id, "text": body, "parse_mode": "HTML",
+            "disable_web_page_preview": True})
+        if r.status_code >= 300:
+            log(f"Telegram error for {chat_id}: {r.status_code} {r.text[:300]}")
+            ok = False
+    return ok
+
+
 def send_teams(text):
     """Teams 'Workflows' webhook (Post to a channel when a webhook request is received)."""
     url = env("TEAMS_WEBHOOK_URL")
@@ -356,8 +373,11 @@ def deliver(text, dry_run=False):
     ok_wa = True
     if whatsapp_recipients():
         ok_wa = send_twilio(text) if provider == "twilio" else send_meta(text)
+    ok_tg = True
+    if env("TELEGRAM_BOT_TOKEN") and env("TELEGRAM_CHAT_ID"):
+        ok_tg = send_telegram(text)
     ok_teams = send_teams(text)
-    return ok_wa and ok_teams  # retry next run if either channel failed
+    return ok_wa and ok_tg and ok_teams  # retry next run if any channel failed
 
 
 # --------------------------------------------------------------------------- main
