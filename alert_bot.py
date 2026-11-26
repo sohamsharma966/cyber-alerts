@@ -94,7 +94,8 @@ class Alert:
         self.summary, self.link, self.patch = summary, link, patch
         self.urgent, self.source = urgent, source
 
-    ICONS = {"ZERO-DAY": "🚨", "CRITICAL CVE": "🔴", "PATCH": "🩹", "NEWS": "📰", "OUTAGE": "⚠️"}
+    ICONS = {"ZERO-DAY": "🚨", "CRITICAL CVE": "🔴", "PATCH": "🩹", "NEWS": "📰", "OUTAGE": "⚠️",
+             "END OF SUPPORT": "🗓️"}
 
     def full_text(self):
         lines = [f"{self.ICONS.get(self.category, '🔔')} *{self.category}*  ({self.source})",
@@ -260,6 +261,12 @@ def src_rss(cfg, vendors):
                     continue
                 category = "ZERO-DAY" if exploited_hits else "PATCH"
                 urgent = bool(exploited_hits) or feed.get("urgent", False)
+            elif kind == "eol":
+                must = feed.get("keywords") or kw.get("end_of_support", [])
+                if not contains_any(text, must):
+                    continue
+                category = "END OF SUPPORT"
+                urgent = feed.get("urgent", False)
             else:  # outage
                 must = feed.get("keywords") or []
                 if must and not contains_any(text, must):
@@ -282,6 +289,104 @@ def src_rss(cfg, vendors):
                 urgent=urgent,
                 source=feed["name"],
             ))
+    return out
+
+
+def src_endoflife(cfg):
+    """End-of-support countdowns for products you run (endoflife.date, free API)."""
+    c = cfg["sources"].get("endoflife", {})
+    if not c.get("enabled", False):
+        return []
+    warn = sorted(c.get("warn_days", [180, 90, 30, 7]), reverse=True)
+    today = dt.date.today()
+    out = []
+    for product in c.get("products", []):
+        try:
+            data = http_get(f"https://endoflife.date/api/v1/products/{product}/").json()["result"]
+        except Exception as e:
+            log(f"endoflife '{product}' failed: {e}")
+            continue
+        label = data.get("label", product)
+        link = data.get("links", {}).get("html", f"https://endoflife.date/{product}")
+        for rel in data.get("releases", []):
+            eol = rel.get("eolFrom")
+            if not isinstance(eol, str):
+                continue
+            try:
+                eol_date = dt.date.fromisoformat(eol[:10])
+            except ValueError:
+                continue
+            days = (eol_date - today).days
+            if -7 <= days < 0:
+                stage, text = 0, f"reached end of support on {eol_date:%d %b %Y}"
+            elif 0 <= days <= warn[0]:
+                stage = min(w for w in warn if days <= w)  # tightest threshold crossed
+                text = f"ends support in {days} day(s), on {eol_date:%d %b %Y}"
+            else:
+                continue
+            out.append(Alert(
+                uid=f"eol:{product}:{rel.get('name')}:{stage}",
+                category="END OF SUPPORT",
+                title=f"{label} {rel.get('label') or rel.get('name')} {text}",
+                summary="No more security patches after this date. Plan the upgrade.",
+                link=link,
+                urgent=days <= c.get("urgent_days", 7),
+                source="endoflife.date",
+            ))
+    return out
+
+
+def src_m365(cfg):
+    """Microsoft 365 service health incidents + retirement notices for YOUR tenant (Graph API)."""
+    c = cfg["sources"].get("m365", {})
+    tenant, cid, secret = env("M365_TENANT_ID"), env("M365_CLIENT_ID"), env("M365_CLIENT_SECRET")
+    if not c.get("enabled", True) or not (tenant and cid and secret):
+        return []
+    tok = requests.post(f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token", timeout=HTTP_TIMEOUT,
+                        data={"grant_type": "client_credentials", "client_id": cid, "client_secret": secret,
+                              "scope": "https://graph.microsoft.com/.default"})
+    tok.raise_for_status()
+    h = {"Authorization": f"Bearer {tok.json()['access_token']}"}
+    base = "https://graph.microsoft.com/v1.0/admin/serviceAnnouncement"
+    out = []
+    try:
+        issues = requests.get(f"{base}/issues?$filter=isResolved eq false", headers=h, timeout=HTTP_TIMEOUT)
+        issues.raise_for_status()
+        for i in issues.json().get("value", []):
+            incident = i.get("classification") == "incident"
+            out.append(Alert(
+                uid=f"m365:{i['id']}",
+                category="OUTAGE",
+                title=f"Microsoft 365 – {i.get('service', '')}: {i.get('title', '')} ({i['id']})",
+                summary=f"{'Incident' if incident else 'Advisory'} – {i.get('impactDescription', '')}",
+                link="https://admin.microsoft.com/#/servicehealth",
+                urgent=incident,
+                source="M365 Service Health",
+            ))
+    except Exception as e:
+        log(f"M365 issues failed: {e}")
+    if c.get("retirements", True):
+        try:
+            since = (dt.datetime.utcnow() - dt.timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            msgs = requests.get(f"{base}/messages?$filter=lastModifiedDateTime ge {since}",
+                                headers=h, timeout=HTTP_TIMEOUT)
+            msgs.raise_for_status()
+            words = cfg["keywords"].get("end_of_support", [])
+            for m in msgs.json().get("value", []):
+                tags = " ".join(m.get("tags") or [])
+                if "Retirement" not in tags and not contains_any(m.get("title", ""), words):
+                    continue
+                out.append(Alert(
+                    uid=f"m365msg:{m['id']}",
+                    category="END OF SUPPORT",
+                    title=f"Microsoft 365 ({', '.join(m.get('services') or [])}): {m.get('title', '')} ({m['id']})",
+                    summary=f"Act by: {(m.get('actionRequiredByDateTime') or 'n/a')[:10]}",
+                    link=f"https://admin.microsoft.com/#/MessageCenter/:/messages/{m['id']}",
+                    urgent=False,
+                    source="M365 Message Center",
+                ))
+        except Exception as e:
+            log(f"M365 messages failed: {e}")
     return out
 
 
@@ -391,7 +496,9 @@ def collect(cfg):
     alerts = []
     for name, fn in (("CISA KEV", lambda: src_cisa_kev(cfg)),
                      ("NVD", lambda: src_nvd(cfg, vendors)),
-                     ("RSS", lambda: src_rss(cfg, vendors))):
+                     ("RSS", lambda: src_rss(cfg, vendors)),
+                     ("End of support", lambda: src_endoflife(cfg)),
+                     ("Microsoft 365", lambda: src_m365(cfg))):
         try:
             got = fn()
             log(f"{name}: {len(got)} candidate alerts")
@@ -408,6 +515,23 @@ def collect(cfg):
         seen_cves.add(key)
         unique.append(a)
     return unique
+
+
+def configured_sources(cfg):
+    """Names of every source currently switched on (matches Alert.source)."""
+    s = cfg["sources"]
+    names = []
+    if s["cisa_kev"].get("enabled", True):
+        names.append("CISA KEV")
+    if s["nvd"].get("enabled", True):
+        names.append("NVD")
+    names += [f["name"] for f in s["rss"] if f.get("enabled", True)]
+    if s.get("endoflife", {}).get("enabled", False):
+        names.append("endoflife.date")
+    if s.get("m365", {}).get("enabled", True) and env("M365_TENANT_ID") and env("M365_CLIENT_ID") \
+            and env("M365_CLIENT_SECRET"):
+        names += ["M365 Service Health", "M365 Message Center"]
+    return sorted(names)
 
 
 def main():
@@ -457,12 +581,28 @@ def main():
         # First run: don't flood the phone with everything from the past week.
         for a in new:
             state["seen"][a.uid] = now
+        state["known_sources"] = configured_sources(cfg)
         if not args.dry_run:
             save_state(state)
             deliver(f"✅ Cyber Alert Bot is live. Watching {len(alerts)} recent items; "
                     f"you'll get alerts for anything new from now on.")
         log("Seeded state; no alerts sent.")
         return
+
+    # A source seen for the first time (e.g. just added to config) is seeded silently,
+    # so adding a feed doesn't flood you with its back catalogue.
+    configured = configured_sources(cfg)
+    if "known_sources" not in state:          # upgrade from an older version: quiet re-seed once
+        fresh = set(configured)
+    else:
+        fresh = set(configured) - set(state["known_sources"])
+    if fresh:
+        for a in new:
+            if a.source in fresh:
+                state["seen"][a.uid] = now
+        new = [a for a in new if a.source not in fresh]
+        log(f"New source(s) seeded silently: {', '.join(sorted(fresh))}")
+    state["known_sources"] = sorted(set(state.get("known_sources", [])) | set(configured))
 
     max_urgent = cfg.get("max_urgent_per_run", 8)
     urgent = [a for a in new if a.urgent]
